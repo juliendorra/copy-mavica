@@ -19,11 +19,15 @@ It also fixes the macOS creation date (which the camera sets to epoch/1970) so t
 
 A macOS app built with [Platypus](https://sveinbjorn.org/platypus) is included as `Mavica Copy App.zip`. It wraps `copy-mavica.sh` in a native GUI so you can run it without a terminal. The Platypus profile (`Mavica Copy.platypus`) is also included for customization.
 
+<img width="146" height="150" alt="Capture d’écran 2026-03-06 à 12 23 34" src="https://github.com/user-attachments/assets/2467af13-9e28-45eb-95ae-eb562c43cf1d" />
+
 ### Using the Mac app
 
 Insert the disk first. The disk should be named MY_PHOTO (if you formatted it in the Mavica, it is already named that)
 
-Open the app, it will detect the disk and copy the photos to a Mavica Photos at the root of your iCloud Drive folder. 
+Open the app, it will detect the disk and copy the photos to a Mavica Photos at the root of your iCloud Drive folder.
+
+<img width="169" height="176" alt="Capture d’écran 2026-03-06 à 12 07 15" src="https://github.com/user-attachments/assets/05562c93-a08f-41a0-8b49-4d6b7c6e66ce" />
 
 ## Scripts
 
