@@ -4,9 +4,9 @@ Copy and rename photos from a Sony Mavica floppy disk camera, with proper date h
 
 ## What it does
 
-The Mavica FD5 and FD7 cameras store JPEGs with generic filenames.
+The Mavica FD5 and FD7 cameras store JPEGs with generic filenames on 3.5" floppy diskettes.
 
-`copy-mavica.sh` copies them to a destination folder, renaming each file based on its modified timestamp:
+This project copies them to a destination folder, renaming each file based on its modified timestamp:
 
 ```
 MVC-001.JPG  →  MAVICA-2025-07-14-16-32-05.JPG
@@ -15,25 +15,92 @@ MVC-002.JPG  →  MAVICA-2025-07-14-16-33-12.JPG
 
 It also fixes the macOS creation date (which the camera sets to epoch/1970) so that Finder, Photos, and iCloud sort files correctly.
 
-## Mac App
+## Mavica Copy — native Mac app
 
-A macOS app built with [Platypus](https://sveinbjorn.org/platypus) is included as `Mavica Copy App.zip`. It wraps `copy-mavica.sh` in a native GUI so you can run it without a terminal. The Platypus profile (`Mavica Copy.platypus`) is also included for customization.
+A real SwiftUI macOS app, built **without Xcode**: only the Command Line Tools, SwiftPM, and a hand-assembled app bundle (the same pure-Swift technique as the Padipop iPod/iPad project).
 
-<img width="146" height="150" alt="Capture d’écran 2026-03-06 à 12 23 34" src="https://github.com/user-attachments/assets/2467af13-9e28-45eb-95ae-eb562c43cf1d" />
+- Detects a mounted Mavica floppy (`MY_PHOTO`) automatically, live on mount/eject.
+- Copies all JPEGs (skipping `._` AppleDouble junk), renamed to `MAVICA-YYYY-MM-DD-HH-MM-SS.JPG`, with `--2`, `--3`… on collisions.
+- Sets each copy's creation date to the photo's modification date — no `SetFile` needed.
+- Destination defaults to `iCloud Drive/Mavica Photos`; any folder can be chosen and is remembered.
+- Progress bar, activity log, Show in Finder, and one-click Eject Floppy when done.
 
-### Using the Mac app
+### Build
 
-Insert the disk first. The disk should be named MY_PHOTO (if you formatted it in the Mavica, it is already named that)
+```bash
+Scripts/build-app.sh        # runs checks, builds, assembles and signs dist/Mavica Copy.app
+```
 
-Open the app, it will detect the disk and copy the photos to a Mavica Photos at the root of your iCloud Drive folder.
+Requirements: macOS 13+, Command Line Tools (`xcode-select --install`). No Xcode, no Apple Developer account.
 
-<img width="169" height="176" alt="Capture d’écran 2026-03-06 à 12 07 15" src="https://github.com/user-attachments/assets/05562c93-a08f-41a0-8b49-4d6b7c6e66ce" />
+### Signing
 
-## Scripts
+By default the app is ad-hoc signed, which runs fine on the Mac that built it.
+For a stable self-signed identity (survives rebuilds, keeps TCC permission grants):
+
+```bash
+Scripts/create-signing-identity.sh   # run interactively once; approve the keychain dialogs
+Scripts/build-app.sh                 # now signs with "Mavica Copy Signing"
+```
+
+### Project layout
+
+```
+Package.swift             SwiftPM manifest (no Xcode project)
+Sources/MavicaCore/       portable engine: scan, rename, collision, date fixing
+                          (shared unchanged by the Mac and iOS apps)
+Sources/MavicaCopy/       SwiftUI Mac app
+Sources/MavicaCopyMobile/ SwiftUI iOS app
+Checks/                   plain-executable tests: swift run MavicaChecks
+                          (XCTest is not shipped with the Command Line Tools)
+Scripts/build-app.sh      Mac: build + bundle + codesign
+Scripts/build-ios-ipa.sh  iOS: xcodegen + xcodebuild + unsigned IPA (CI)
+Scripts/make-icon.swift   draws the floppy app icon, rendered to .icns via iconutil
+Scripts/make-ios-icon.swift  same artwork, full-bleed and opaque for iOS
+project.yml               XcodeGen spec for the iOS app (project is generated, not committed)
+Resources/AppIcon.icns    generated app icon
+```
+
+## Mavica Copy — iOS app
+
+The same app for iPhone and iPad, sharing `MavicaCore` untouched. Plug the floppy drive into the device with a USB adapter — the diskette shows up in the Files app as `MY_PHOTO`.
+
+Because iOS has no `/Volumes` and no Finder, the flow adapts:
+
+- **Source**: pick the `MY_PHOTO` diskette (or any folder) in the Files picker. The choice is remembered with a security-scoped bookmark, so re-plugging the drive reconnects automatically when the app returns to the foreground.
+- **Destination**: pick `Mavica Photos` in iCloud Drive — the very same folder the Mac app writes to, so both devices import into one place. Also remembered across launches.
+- Same renaming (`MAVICA-YYYY-MM-DD-HH-MM-SS.JPG`, `--2` on collisions), same creation-date fix, same activity log.
+
+### Build (GitHub Actions — the "no Xcode" way, like Padipop)
+
+The iOS SDK is not part of the Command Line Tools, so the app is built by CI, not locally:
+
+1. Run the **Build iOS IPA** workflow (Actions tab → *Build iOS IPA* → *Run workflow*).
+2. Download the `MavicaCopy-unsigned.ipa` artifact.
+3. Sideload it with [Sideloadly](https://sideloadly.io/) using your own (free) Apple ID.
+
+The pipeline is `xcodegen` (from `project.yml`) → unsigned `xcodebuild` → `ditto`-assembled IPA; no `.xcodeproj` is ever committed. On a Mac with full Xcode installed, `Scripts/build-ios-ipa.sh` runs the same pipeline locally.
+
+### TestFlight
+
+The **Release to TestFlight** workflow archives, signs, and uploads to App Store Connect using Xcode cloud-managed signing — no certificate or provisioning profile is ever stored in the repo or in GitHub. It needs a paid Apple Developer membership plus four GitHub Actions secrets:
+
+| Secret | Value |
+|---|---|
+| `ASC_API_KEY_ID` | App Store Connect API key ID (**Admin** role — cloud signing must be able to create the Apple Distribution certificate) |
+| `ASC_API_ISSUER_ID` | The key's issuer ID |
+| `ASC_API_PRIVATE_KEY` | Contents of the downloaded `.p8` file |
+| `APPLE_TEAM_ID` | 10-character team ID |
+
+One-time setup in App Store Connect: create the app record with bundle ID `com.juliendorra.MavicaCopy`, then run the workflow; the processed build appears under TestFlight, where you add yourself as an internal tester.
+
+## Legacy: shell script and Platypus app
+
+The original `copy-mavica.sh` and the [Platypus](https://sveinbjorn.org/platypus)-wrapped app (`Mavica Copy App.zip`, profile `Mavica Copy.platypus`) are kept for reference.
 
 ### `copy-mavica.sh`
 
-The main script. Copies all JPG/JPEG files from a source directory, renames them by timestamp, and fixes creation dates.
+Copies all JPG/JPEG files from a source directory, renames them by timestamp, and fixes creation dates.
 
 **Usage:**
 
@@ -76,10 +143,3 @@ A standalone utility to fix null creation dates (Jan 1, 1970) on existing Mavica
 ```
 
 Requires `SetFile` (included with Xcode Command Line Tools).
-
-
-## Requirements
-
-- macOS (primary target)
-- `SetFile` — part of Xcode Command Line Tools (`xcode-select --install`)
-- Optional: `exiftool` — used as a fallback on non-macOS systems
