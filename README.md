@@ -98,6 +98,12 @@ One-time setup in App Store Connect: create the app record with bundle ID `com.j
 
 The original `copy-mavica.sh` and the [Platypus](https://sveinbjorn.org/platypus)-wrapped app (`Mavica Copy App.zip`, profile `Mavica Copy.platypus`) are kept for reference.
 
+<img width="146" height="150" alt="Mavica Copy Platypus app icon" src="https://github.com/user-attachments/assets/2467af13-9e28-45eb-95ae-eb562c43cf1d" />
+
+Insert the diskette first (named `MY_PHOTO` — if you formatted it in the Mavica, it already is). Open the app: it detects the diskette and copies the photos to a `Mavica Photos` folder at the root of your iCloud Drive.
+
+<img width="169" height="176" alt="Mavica Copy Platypus app window" src="https://github.com/user-attachments/assets/05562c93-a08f-41a0-8b49-4d6b7c6e66ce" />
+
 ### `copy-mavica.sh`
 
 Copies all JPG/JPEG files from a source directory, renames them by timestamp, and fixes creation dates.
