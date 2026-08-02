@@ -1,0 +1,46 @@
+name: Release to TestFlight
+
+run-name: "Release to TestFlight · ${{ github.ref_name }}"
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "mavica-testflight-${{ github.ref }}"
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Archive, sign, and upload to App Store Connect
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Show Xcode and Swift versions
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphoneos swiftc --version
+
+      - name: Install pinned XcodeGen
+        env:
+          XCODEGEN_VERSION: 2.45.4
+        run: |
+          curl --fail --location --silent --show-error \
+            --output "$RUNNER_TEMP/xcodegen.zip" \
+            "https://github.com/yonaskolb/XcodeGen/releases/download/${XCODEGEN_VERSION}/xcodegen.zip"
+          unzip -q "$RUNNER_TEMP/xcodegen.zip" -d "$RUNNER_TEMP/xcodegen"
+          echo "$RUNNER_TEMP/xcodegen/xcodegen/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/xcodegen/xcodegen/bin/xcodegen" --version
+
+      - name: Archive, sign, and upload
+        env:
+          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_API_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
+          ASC_API_PRIVATE_KEY: ${{ secrets.ASC_API_PRIVATE_KEY }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: Scripts/release-testflight.sh
