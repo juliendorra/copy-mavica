@@ -1,0 +1,68 @@
+# XcodeGen spec for the iOS app. The .xcodeproj is generated on every build
+# (Scripts/build-ios-ipa.sh) and never committed — same strategy as Padipop.
+name: MavicaCopyMobile
+
+options:
+  minimumXcodeGenVersion: 2.45.4
+  deploymentTarget:
+    # iOS 17 floor: MobileAppModel uses MainActor.assumeIsolated (iOS 17+).
+    iOS: "17.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+    CLANG_ENABLE_MODULES: YES
+    # Xcode generates a header-copy script for the MavicaCore static Swift
+    # library; Xcode 26's script sandbox otherwise blocks its ditto write.
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
+
+targets:
+  MavicaCore:
+    type: library.static
+    platform: iOS
+    sources:
+      - path: Sources/MavicaCore
+    settings:
+      base:
+        DEFINES_MODULE: YES
+        SKIP_INSTALL: YES
+
+  MavicaCopyMobile:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources/MavicaCopyMobile
+    dependencies:
+      - target: MavicaCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.juliendorra.MavicaCopy
+        PRODUCT_NAME: MavicaCopyMobile
+        TARGETED_DEVICE_FAMILY: "1,2"
+        MARKETING_VERSION: "2.0.0"
+        CURRENT_PROJECT_VERSION: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Mavica Copy
+        INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.photography
+        INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace: YES
+        INFOPLIST_KEY_UIFileSharingEnabled: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIRequiresFullScreen: NO
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+        SUPPORTS_MACCATALYST: NO
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: YES
+
+schemes:
+  MavicaCopyMobile:
+    build:
+      targets:
+        MavicaCopyMobile: all
+    run:
+      config: Debug
+    archive:
+      config: Release

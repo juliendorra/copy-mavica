@@ -1,0 +1,58 @@
+name: Build iOS IPA
+
+run-name: "Build iOS IPA · ${{ github.ref_name }}"
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "mavica-ipa-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  ios:
+    name: Mavica Copy iOS app and unsigned IPA
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Show Xcode and Swift versions
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphonesimulator swiftc --version
+
+      - name: Install pinned XcodeGen
+        env:
+          XCODEGEN_VERSION: 2.45.4
+        run: |
+          curl --fail --location --silent --show-error \
+            --output "$RUNNER_TEMP/xcodegen.zip" \
+            "https://github.com/yonaskolb/XcodeGen/releases/download/${XCODEGEN_VERSION}/xcodegen.zip"
+          unzip -q "$RUNNER_TEMP/xcodegen.zip" -d "$RUNNER_TEMP/xcodegen"
+          echo "$RUNNER_TEMP/xcodegen/xcodegen/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/xcodegen/xcodegen/bin/xcodegen" --version
+
+      - name: Build, check, and package Mavica Copy
+        run: Scripts/build-ios-ipa.sh
+
+      - name: Upload unsigned Sideloadly IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: MavicaCopy-unsigned.ipa
+          path: dist/MavicaCopy-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: MavicaCopy-iOS-failure-${{ github.run_id }}
+          path: .build/ios-derived-data/Logs
+          if-no-files-found: ignore
+          retention-days: 3
