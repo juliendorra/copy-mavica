@@ -19,6 +19,11 @@ public enum MavicaLocations {
         return URL(fileURLWithPath: path, isDirectory: true)
     }
 
+    // The remaining helpers rely on macOS-only paths and API
+    // (homeDirectoryForCurrentUser); on iOS locations come from the
+    // Files picker instead.
+    #if os(macOS)
+
     /// The on-disk iCloud Drive root (`~/Library/Mobile Documents/com~apple~CloudDocs`).
     public static func iCloudDriveRoot(fileManager: FileManager = .default) -> URL? {
         let root = fileManager.homeDirectoryForCurrentUser
@@ -41,4 +46,6 @@ public enum MavicaLocations {
             .appendingPathComponent("Pictures", isDirectory: true)
             .appendingPathComponent(defaultICloudSubfolder, isDirectory: true)
     }
+
+    #endif
 }
