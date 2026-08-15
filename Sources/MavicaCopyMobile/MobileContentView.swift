@@ -76,7 +76,7 @@ struct MobileContentView: View {
                         Image(systemName: "floppydisk")
                             .foregroundStyle(.secondary)
                         VStack(alignment: .leading, spacing: 1) {
-                            Text(source.lastPathComponent)
+                            Text(model.sourceDisplayName ?? source.lastPathComponent)
                                 .fontWeight(.medium)
                             Text(model.sourceLooksLikeFloppy
                                  ? "Mavica floppy diskette"

@@ -17,6 +17,7 @@ final class MobileAppModel: ObservableObject {
     }
 
     @Published var sourceURL: URL?
+    @Published var sourceDisplayName: String?
     @Published var destinationURL: URL?
     @Published var phase: Phase = .idle
     @Published var logLines: [String] = []
@@ -39,7 +40,18 @@ final class MobileAppModel: ObservableObject {
     /// the volume it sits on) carries the camera's MY_PHOTO volume name.
     var sourceLooksLikeFloppy: Bool {
         guard let sourceURL else { return false }
-        return sourceURL.path.contains(MavicaLocations.cameraVolumeName)
+        return sourceDisplayName == MavicaLocations.cameraVolumeName
+            || sourceURL.path.contains(MavicaLocations.cameraVolumeName)
+    }
+
+    /// Files mounts external USB volumes under a UUID-named directory, so the
+    /// picked folder's last path component can be a bare UUID. The volume /
+    /// localized name is what the user saw in the picker ("MY_PHOTO").
+    private static func displayName(for url: URL) -> String {
+        let accessed = url.startAccessingSecurityScopedResource()
+        defer { if accessed { url.stopAccessingSecurityScopedResource() } }
+        let values = try? url.resourceValues(forKeys: [.localizedNameKey, .volumeNameKey])
+        return values?.localizedName ?? values?.volumeName ?? url.lastPathComponent
     }
 
     var destinationIsICloud: Bool {
@@ -59,10 +71,12 @@ final class MobileAppModel: ObservableObject {
         if let resolved {
             if sourceURL != resolved {
                 sourceURL = resolved
-                log("Floppy reconnected at \(resolved.lastPathComponent).")
+                sourceDisplayName = Self.displayName(for: resolved)
+                log("Floppy reconnected at \(sourceDisplayName ?? resolved.lastPathComponent).")
             }
         } else if sourceURL != nil {
             sourceURL = nil
+            sourceDisplayName = nil
             log("Floppy is no longer reachable. Plug it in and pick it again if needed.")
         }
     }
@@ -70,7 +84,8 @@ final class MobileAppModel: ObservableObject {
     func setSource(_ url: URL) {
         Self.saveBookmark(for: url, key: Self.sourceBookmarkKey)
         sourceURL = url
-        log("Source set to \(url.lastPathComponent).")
+        sourceDisplayName = Self.displayName(for: url)
+        log("Source set to \(sourceDisplayName ?? url.lastPathComponent).")
     }
 
     func setDestination(_ url: URL) {
