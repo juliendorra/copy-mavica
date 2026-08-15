@@ -26,9 +26,32 @@ final class MobileAppModel: ObservableObject {
     private static let sourceBookmarkKey = "MavicaCopy.sourceBookmark"
     private static let destinationBookmarkKey = "MavicaCopy.destinationBookmark"
 
+    private var floppyWatcher: Timer?
+
     init() {
         destinationURL = Self.resolveBookmark(key: Self.destinationBookmarkKey)
         refreshSource()
+        watchForFloppy()
+    }
+
+    deinit {
+        floppyWatcher?.invalidate()
+    }
+
+    /// iOS has no volume-mount notifications, but re-resolving the saved
+    /// bookmark is cheap — poll it so the last-picked diskette reconnects
+    /// within seconds of being plugged in while the app is open.
+    private func watchForFloppy() {
+        let timer = Timer(timeInterval: 3, repeats: true) { _ in
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated { [weak self] in
+                    self?.refreshSource()
+                }
+            }
+        }
+        timer.tolerance = 1
+        RunLoop.main.add(timer, forMode: .common)
+        floppyWatcher = timer
     }
 
     var isCopying: Bool {
