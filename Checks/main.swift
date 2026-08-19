@@ -182,6 +182,82 @@ do {
     expectEqual(outcome.failures.count, 1, "missing source is reported as a failure")
 }
 
+// MARK: - Trash detection
+
+do {
+    let root = try makeTempDir("scanner-trash")
+    defer { try? fileManager.removeItem(at: root) }
+
+    let date = Date(timeIntervalSince1970: 1_000_000)
+    try makeFile(at: root.appendingPathComponent("MVC-001.JPG"), contents: "keep", modified: date)
+    try makeFile(at: root.appendingPathComponent(".Trashes/501/MVC-002.JPG"), contents: "deleted", modified: date)
+    try makeFile(at: root.appendingPathComponent(".Trashes/501/._MVC-002.JPG"), contents: "junk", modified: date)
+
+    let scan = MavicaScanner.scan(in: root)
+    expectEqual(
+        scan.photos.map(\.url.lastPathComponent),
+        ["MVC-001.JPG"],
+        "photos in hidden trash folders are not imported"
+    )
+    expectEqual(
+        scan.trashed.map(\.url.lastPathComponent),
+        ["MVC-002.JPG"],
+        "trashed photos are detected and listed"
+    )
+}
+
+// MARK: - Duplicates & verification
+
+do {
+    let base = try makeTempDir("engine-duplicates")
+    defer { try? fileManager.removeItem(at: base) }
+    let source = base.appendingPathComponent("source", isDirectory: true)
+    let destination = base.appendingPathComponent("destination", isDirectory: true)
+
+    let epoch = Date(timeIntervalSince1970: 0)
+    let photo = source.appendingPathComponent("MVC-001.JPG")
+    try makeFile(at: photo, contents: "same-bytes", modified: epoch)
+    let files = [MavicaFile(url: photo, modificationDate: epoch)]
+
+    let first = CopyEngine().copy(files: files, into: destination, timeZone: utc)
+    expectEqual(first.copied.count, 1, "first copy of a photo is copied")
+
+    let second = CopyEngine().copy(files: files, into: destination, timeZone: utc)
+    expect(second.copied.isEmpty, "re-copying skips the duplicate by default")
+    expectEqual(
+        second.skippedDuplicates.map(\.existing.lastPathComponent),
+        ["MAVICA-1970-01-01-00-00-00.JPG"],
+        "the skipped duplicate names its existing copy"
+    )
+
+    let third = CopyEngine().copy(files: files, into: destination, timeZone: utc, skipDuplicates: false)
+    expectEqual(
+        third.copied.map(\.destination.lastPathComponent),
+        ["MAVICA-1970-01-01-00-00-00--2.JPG"],
+        "skipDuplicates: false copies the duplicate under a suffixed name"
+    )
+}
+
+// MARK: - DiskCleaner
+
+do {
+    let root = try makeTempDir("cleaner")
+    defer { try? fileManager.removeItem(at: root) }
+
+    let photo = root.appendingPathComponent("MVC-001.JPG")
+    try makeFile(at: photo, contents: "photo", modified: nil)
+    try makeFile(at: root.appendingPathComponent("._MVC-001.JPG"), contents: "junk", modified: nil)
+    let missing = root.appendingPathComponent("GONE.JPG")
+
+    let errors = DiskCleaner.delete(files: [photo, missing])
+    expect(!fileManager.fileExists(atPath: photo.path), "cleaner deletes the photo")
+    expect(
+        !fileManager.fileExists(atPath: root.appendingPathComponent("._MVC-001.JPG").path),
+        "cleaner deletes the AppleDouble sidecar too"
+    )
+    expectEqual(errors.count, 1, "cleaner reports files it could not delete")
+}
+
 // MARK: - Summary
 
 if failureCount > 0 {

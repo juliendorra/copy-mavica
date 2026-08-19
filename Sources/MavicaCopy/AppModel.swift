@@ -133,20 +133,28 @@ final class AppModel: ObservableObject {
                 model.phase = .copying(done: 0, total: files.count)
             }
 
-            let outcome = CopyEngine().copy(files: files, into: destination) { done, total, name in
+            let outcome = CopyEngine().copy(files: files, into: destination) { done, total, event in
                 self?.onMain { model in
                     model.phase = .copying(done: done, total: total)
-                    model.log("Copied \(name)")
+                    switch event {
+                    case let .copied(name):
+                        model.log("Copied and verified \(name)")
+                    case let .skippedDuplicate(sourceName, existingName):
+                        model.log("Skipped \(sourceName) — already copied as \(existingName)")
+                    case let .failed(sourceName, message):
+                        model.log("Failed: \(sourceName) — \(message)")
+                    }
                 }
             }
 
             self?.onMain { model in
                 model.lastOutcome = outcome
-                for failure in outcome.failures {
-                    model.log("Failed: \(failure.source.lastPathComponent) — \(failure.message)")
-                }
                 model.phase = .finished(copied: outcome.copied.count, failed: outcome.failures.count)
-                model.log("Done. \(outcome.copied.count) copied, \(outcome.failures.count) failed.")
+                var summary = "Done. \(outcome.copied.count) copied, \(outcome.failures.count) failed."
+                if !outcome.skippedDuplicates.isEmpty {
+                    summary += " \(outcome.skippedDuplicates.count) duplicate\(outcome.skippedDuplicates.count == 1 ? "" : "s") skipped."
+                }
+                model.log(summary)
             }
         }
     }

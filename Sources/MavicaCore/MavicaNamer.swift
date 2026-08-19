@@ -15,6 +15,19 @@ public enum MavicaNamer {
         return formatter.string(from: date)
     }
 
+    /// The `attempt`th candidate name for a photo with the given modification
+    /// date: attempt 1 is `MAVICA-<timestamp>.JPG`, attempt 2 `…--2.JPG`, etc.
+    public static func candidateName(
+        for date: Date,
+        timeZone: TimeZone = .current,
+        attempt: Int
+    ) -> String {
+        let base = "\(prefix)-\(timestamp(for: date, timeZone: timeZone))"
+        return attempt <= 1
+            ? "\(base).\(fileExtension)"
+            : "\(base)--\(attempt).\(fileExtension)"
+    }
+
     /// Returns the first non-colliding file name for a photo with the given
     /// modification date. `isTaken` is queried with candidate names until one is free.
     public static func fileName(
@@ -22,12 +35,11 @@ public enum MavicaNamer {
         timeZone: TimeZone = .current,
         isTaken: (String) -> Bool
     ) -> String {
-        let base = "\(prefix)-\(timestamp(for: date, timeZone: timeZone))"
-        var candidate = "\(base).\(fileExtension)"
-        var suffix = 2
+        var attempt = 1
+        var candidate = candidateName(for: date, timeZone: timeZone, attempt: attempt)
         while isTaken(candidate) {
-            candidate = "\(base)--\(suffix).\(fileExtension)"
-            suffix += 1
+            attempt += 1
+            candidate = candidateName(for: date, timeZone: timeZone, attempt: attempt)
         }
         return candidate
     }
