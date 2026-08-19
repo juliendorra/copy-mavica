@@ -15,6 +15,8 @@ struct MobileContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var pickerTarget: PickerTarget?
     @State private var pickerIsPresented = false
+    @State private var confirmEmptyTrash = false
+    @State private var confirmEmptyDisk = false
 
     var body: some View {
         ScrollView {
@@ -95,6 +97,28 @@ struct MobileContentView: View {
                     Button("Choose…") { presentPicker(for: .source) }
                         .disabled(model.isCopying)
                 }
+                if !model.trashedFiles.isEmpty {
+                    Divider()
+                    HStack {
+                        Label(
+                            "\(model.trashedFiles.count) deleted photo\(model.trashedFiles.count == 1 ? "" : "s") still on the diskette",
+                            systemImage: "exclamationmark.triangle"
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                        Spacer()
+                        Button("Empty Trash…", role: .destructive) { confirmEmptyTrash = true }
+                            .font(.caption)
+                            .disabled(model.isCopying)
+                    }
+                    .confirmationDialog(
+                        "Delete \(model.trashedFiles.count) trashed photo\(model.trashedFiles.count == 1 ? "" : "s") from the diskette? They were deleted in Files but still occupy diskette space.",
+                        isPresented: $confirmEmptyTrash,
+                        titleVisibility: .visible
+                    ) {
+                        Button("Empty Trash", role: .destructive) { model.emptyTrash() }
+                    }
+                }
             }
             .padding(6)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -155,15 +179,35 @@ struct MobileContentView: View {
                 statusText
             }
 
+            Toggle("Skip photos already in the destination", isOn: $model.skipDuplicates)
+                .font(.callout)
+                .disabled(model.isCopying)
+
             if case let .copying(done, total) = model.phase, total > 0 {
                 ProgressView(value: Double(done), total: Double(total))
             }
 
             if case .finished = model.phase {
-                Button {
-                    model.openDestinationInFiles()
-                } label: {
-                    Label("Show in Files", systemImage: "folder")
+                HStack(spacing: 16) {
+                    Button {
+                        model.openDestinationInFiles()
+                    } label: {
+                        Label("Show in Files", systemImage: "folder")
+                    }
+                    if model.canEmptyDisk {
+                        Button(role: .destructive) {
+                            confirmEmptyDisk = true
+                        } label: {
+                            Label("Empty Disk…", systemImage: "trash")
+                        }
+                    }
+                }
+                .confirmationDialog(
+                    "Erase \(model.erasableSourceCount) photo\(model.erasableSourceCount == 1 ? "" : "s") from the diskette? Every one was copied and byte-for-byte verified (or already present) in the destination.",
+                    isPresented: $confirmEmptyDisk,
+                    titleVisibility: .visible
+                ) {
+                    Button("Empty Disk", role: .destructive) { model.emptyDisk() }
                 }
             }
         }

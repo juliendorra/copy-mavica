@@ -70,6 +70,10 @@ Because iOS has no `/Volumes` and no Finder, the flow adapts:
 - **Source**: pick the `MY_PHOTO` diskette (or any folder) in the Files picker. The choice is remembered with a security-scoped bookmark, so re-plugging the drive reconnects automatically when the app returns to the foreground.
 - **Destination**: pick `Mavica Photos` in iCloud Drive — the very same folder the Mac app writes to, so both devices import into one place. Also remembered across launches.
 - Same renaming (`MAVICA-YYYY-MM-DD-HH-MM-SS.JPG`, `--2` on collisions), same creation-date fix, same activity log.
+- Every copy is **hash-verified** (diskettes are not 100% reliable): bytes are hashed while reading, written, read back, and compared.
+- **Duplicates** (same bytes already in the destination) are skipped by default — a toggle copies them instead.
+- Deleting in the Files app secretly moves files into a hidden `.Trashes` folder *on the diskette*; the app never imports those, warns when they exist, and offers **Empty Trash**.
+- After a fully verified copy, **Empty Disk** erases the copied photos (and the trash) from the diskette, ready for the Mavica.
 
 ### Build (GitHub Actions — the "no Xcode" way, like Padipop)
 
